@@ -1,0 +1,125 @@
+# CLAUDE.md — {{PROJECT_NAME}}
+
+> This is the project bootstrap file. Any Claude session working in this repo reads it FIRST, then
+> the architecture pointer below. It encodes the non-negotiable conventions that let a fleet of
+> agents build in parallel without breaking each other. Fill every `{{PLACEHOLDER}}` before you ship
+> feature code. Keep it short; link out, do not inline whole specs.
+
+**Mission:** build **{{PROJECT_NAME}}** to the requirements in `{{KB_DIR}}/`, autonomously, with every
+acceptance criterion **verified** (see the testing policy in §10).
+
+**Stack:** {{STACK}} · **DB:** {{DB}} · **Package manager:** {{PKG_MGR}}
+**Source of truth for requirements:** `{{KB_DIR}}/` (the knowledge base — never re-parse the original
+corpus; always cite the KB).
+**Source of truth for "done":** the acceptance-criteria ledger at `{{AC_LEDGER_PATH}}`.
+
+---
+
+## 1. Modularity is paramount
+
+This is the operator's #1 standing value. Bake it in from commit 1, not as a later refactor.
+
+- Every capability is an **isolated vertical-slice module** with its own **owned globs** (web, api,
+  contracts, db) registered in `MODULES.md`. An agent works inside ONE module's globs and never
+  edits another module's files.
+- Modules talk to each other only through the **contract layer** ({{CONTRACTS_PKG}}) and the
+  shared **append-only seams** below — never by reaching into each other's internals.
+- Actively reduce monoliths: split DB schema per-domain, drive nav/menus/routes from registries,
+  keep cross-cutting models in a single `_base` file that everyone consumes and nobody forks.
+- The test of good modularity: **"to change X, edit exactly here"** must hold for any X.
+
+## 2. Schema / contract at every boundary
+
+A single source of truth for request/response shapes lives in **{{CONTRACTS_PKG}}**:
+hand-written Zod schemas → `zod-to-openapi` → versioned `openapi.yaml` → `openapi-typescript` →
+generated `api-types` the web app imports. The API validates with Zod **at every route edge**.
+
+- Zod-first (real runtime validation), not OpenAPI-first.
+- The `package.json` **version bump** of {{CONTRACTS_PKG}} is the **backend↔frontend coordination
+  signal** — see `{{CONTRACTS_PKG}}/CLAUDE.md` for the invariants.
+- Validate at every edge: untrusted input is parsed by the matching Zod schema before it reaches
+  business logic; responses are typed from the generated `api-types`.
+
+## 3. Owned globs + four append-only seams
+
+Parallel safety comes from **owned globs** plus exactly four **append-only seams**. A module agent
+owns its globs and **appends ONE line** to each seam it touches — it never edits another module's
+lines. `.gitattributes` marks these files `merge=union` so concurrent appends never conflict.
+
+| # | Seam | File | Each module appends |
+|---|------|------|---------------------|
+| 1 | DB schema | `{{SCHEMA_DIR}}/<module>.{{SCHEMA_EXT}}` (+ a `_base` file for cross-cutting models) | its own per-module schema file |
+| 2 | API module registry | `{{API_REGISTRY_PATH}}` | one registration line for its router |
+| 3 | Nav registry | `{{NAV_REGISTRY_PATH}}` | one nav entry (a unit test enforces unique keyboard chords) |
+| 4 | Contracts index | `{{CONTRACTS_PKG}}/src/index.ts` (+ its own `<module>.contract.ts`) | one `export *` line |
+
+**CRITICAL:** parallel agents do **NOT** bump the {{CONTRACTS_PKG}} version or regenerate
+`openapi.yaml` / `api-types`. The **integrator** does that **once** at merge. That removes the last
+shared-file collision and keeps every agent's branch independently green.
+
+## 4. The Authority Matrix is RBAC — "to change who can do X, edit exactly here"
+
+Authorization is a **capability matrix + row-level read-scope**, not scattered `if` checks.
+
+- Each protected action maps to a capability; each role's capabilities live in one matrix
+  (`{{RBAC_MATRIX_PATH}}`).
+- Read access is scoped by row (who may see which records), declared once per module.
+- To change who can do X: edit the matrix row for X — nowhere else. Never inline a role check in a
+  component or a handler.
+
+## 5. Audit is append-only, one row per changed field
+
+- One audit row **per audited field change** — never zero, never two.
+- The audit table forbids in-band `UPDATE`/`DELETE`; it is tamper-evident by construction.
+- Audited fields are declared per module (data-driven), not hand-logged at call sites.
+
+## 6. State is a state machine, never a free field
+
+Lifecycle status changes go through explicit, guarded transitions — never a free `PATCH status=...`.
+Model transitions as data with guards; a silent wrong transition is a correctness failure. The
+allowed transition map lives in one place per stateful entity (`{{STATE_MACHINE_PATH}}`).
+
+## 7. Provenance everywhere — but never in user-facing strings
+
+- Code that implements a requirement **names it** in a comment:
+  `// {{REQ_ID_EXAMPLE}} — {{KB_DIR}}/<area>/<doc>.md:NNN`
+- Commits and PR bodies cite the governing requirement IDs and `file:line`.
+- **NEVER** put an internal spec ref (`{{REQ_ID_PREFIX}}-*`, `AC-*`, ticket id) in any string a user
+  sees — UI label, toast, error, email. Provenance is for code, commits, and the AC ledger only.
+
+## 8. Conventional commits
+
+`type(scope): subject` (`feat`, `fix`, `chore`, `refactor`, `test`, `docs`). Scope is the module.
+Reference the AC / requirement in the body. Commit + push is fine on a feature branch **when the
+operator asks**; sub-agents commit their own branch and never push (see `AGENTS.md`).
+
+## 9. Don't
+
+- **Don't invent requirements.** If the corpus is silent, log an entry in `docs/open-questions.md`
+  and pick a **conservative default** — do not guess behaviour for anything safety-, money-, or
+  rights-bearing.
+- **Don't cite stale/excluded material** — honor the Excluded + canonical-copy rules in the KB
+  `INDEX.md`.
+- **Don't let status be a free field**, don't scatter role checks, don't hand-log audit rows.
+- **Don't bump the contracts version or regenerate types in a feature branch** — that is the
+  integrator's job.
+- **Don't put spec refs in user-facing strings.**
+
+## 10. Testing policy — opt-in, mandatory only for the protected core
+
+Automated testing is **opt-in**. Do NOT write a test as a reflex for every change. The unit of "done"
+is a **verification**, and its kind depends on what the change touches:
+
+- **Protected core → a passing automated test against a real DB is MANDATORY.** Protected core is
+  where a regression is *silent* (no type error, no crash) and consequential: the **state machine** /
+  status transitions, **RBAC** read-scope + permission gates, **audit-log** invariants (one row per
+  audited field, append-only), **snapshot / immutability**, **allocation / capacity / temporal (date)
+  / SLA** math, **scoring**, and **merge resolvers**. Test the pure function or the route against the
+  real test DB — never a hand-rolled mock harness; scaffolding must not exceed the code under test.
+- **Everything else → verify on the live app.** DTO mapping, route wiring, prop passing, UI
+  layout/styling/copy, config/env, exploratory code: implement, `typecheck` + `lint`, and confirm on
+  the running app. No test step.
+
+The AC ledger's **Verification ref** column holds a test path for protected-core ACs and
+`live-app: <route>` otherwise. The merge gate still requires the **existing** test suite to pass —
+opt-in governs writing *new* tests, not skipping the suite.

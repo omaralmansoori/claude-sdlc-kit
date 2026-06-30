@@ -1,0 +1,51 @@
+# Phase 0 — Orchestrator pre-flight checklist
+
+Tick each box BEFORE spawning any sub-agent.
+
+## Context loaded
+
+- [ ] `CLAUDE.md` (project root) read end-to-end.
+- [ ] Every per-package `CLAUDE.md` (`apps/*/CLAUDE.md`, `packages/*/CLAUDE.md`) read.
+- [ ] `~/.claude/projects/<slug>/memory/MEMORY.md` read; each pointed-to file read.
+- [ ] Prior `*-READINESS.md`, `*-REPORT.md`, `MORNING-REPORT.md` (if any) read.
+- [ ] Project-specific orchestrator doc (`ORCHESTRATOR.md`, `AGENTS.md`) read.
+
+## Baselines run
+
+- [ ] Toolchain check (`scripts/verify-env.sh` or equivalent).
+- [ ] Typecheck across all workspaces.
+- [ ] Lint across all workspaces.
+- [ ] Unit / integration tests (pass-rate captured).
+- [ ] E2E happy-path (pass-rate captured).
+- [ ] Each result written into `.orchestrator/state.md` under "Baselines".
+
+## Queue initialised
+
+- [ ] `bash ~/.claude/skills/orchestrator-protocol/scripts/orchctl-init.sh` run.
+- [ ] `.orchestrator/tasks/{inbox,in-progress,done,escalated}` exist.
+- [ ] `.orchestrator/state.md` exists with Baselines, Producer ledger, Consumer ledger sections.
+- [ ] `.orchestrator/` is in `.gitignore` on `main`.
+- [ ] `.gitattributes` on `main` has `merge=union` for append-only docs.
+- [ ] Both above committed as `chore(orch): prepare orchestrator infra` (or confirmed already present).
+
+## Plan doc written
+
+- [ ] `docs/<mission>-plan-<DATE>.md` exists at repo root or under docs/.
+- [ ] Workstreams enumerated with: id, wave, branch name, sub-agent type, depends-on, must-read.
+- [ ] Workstream list either authored manually OR generated via `/goal` invocation.
+
+## Optional goal-planning step
+
+- [ ] `/goal` (or `goal-planner` sub-agent) invoked if the mission is open-ended.
+- [ ] Decomposition output saved to `docs/<mission>-goal-plan.md`.
+- [ ] Decomposition reviewed for sane workstream boundaries before Wave 1 spawns.
+
+## Spawn-readiness
+
+- [ ] All Wave 1 sub-agent briefs drafted from `templates/subagent-prompt.md.tmpl`.
+- [ ] Each brief has its agent profile applied (see `agent-profiles/<archetype>.yaml`).
+- [ ] Every brief includes the verbatim hard-rules block.
+- [ ] Every brief has a single observable Done-when criterion.
+- [ ] Every brief specifies `isolation: worktree` and `run_in_background: true`.
+
+If every box above is ticked, you can spawn Wave 1 in a single multi-Agent message.

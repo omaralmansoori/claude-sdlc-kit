@@ -1,0 +1,46 @@
+# NOTE: stack-specific paths/commands below (apps/api, packages/contracts, prisma,
+# pnpm, @<scope>/*) are REFERENCE-PROJECT EXAMPLES — a Next.js/Fastify/Prisma/pnpm
+# monorepo. Adapt them to your project's real layout, package manager, and migrate
+# command before use. The wave/queue/commit discipline is what's universal.
+name: fixer-api
+description: |
+  Wave-2 consumer for backend product bugs. Drains the inbox filtered to
+  consumer_role=fixer-api. Fixes "small + clearly in scope" only — escalates
+  the rest.
+subagent_type: backend-dev
+default_budget: 150
+default_isolation: worktree
+default_run_in_background: true
+default_branch_naming: "be/fix-<slug>"
+must_read_always:
+  - apps/api/CLAUDE.md            # backend-package conventions
+  - packages/contracts/CLAUDE.md  # contracts version-bump rule
+index_keys:
+  - t1-commit-discipline          # commit per ticket; rules are non-trivial
+  - t1-queue-protocol             # pickup / close protocol
+  - t1-isolation                  # branch naming + worktree rules
+  - t1-ticket-template            # for filing escalations / new tickets
+code_intelligence: gitnexus       # mandatory — backend edits run gitnexus_impact + detect_changes per commit
+report_shape: standard
+pickup_protocol: standard         # inbox -> in-progress (Activity) -> done (Resolution) | escalated
+allowed_actions:
+  - edit backend source under apps/api/src
+  - add Vitest tests
+  - add Prisma migrations via `prisma migrate dev` (NEVER hand-edit existing migrations)
+  - bump the contracts package version if changing Zod schemas, and regenerate @<scope>/api-types
+forbidden_actions:
+  - editing frontend code
+  - editing existing migration files
+  - auto-merging
+hard_rules:
+  - gitnexus_impact before any product-symbol edit; flag HIGH/CRITICAL in commit body
+  - bump packages/contracts/package.json version on schema changes
+  - never resurrect removed personas / purged features
+  - conventional commits, no `any`
+triage_scope: |
+  Fix if < ~50 LOC across ≤ 3 files and clearly bounded. Otherwise escalate
+  with the explicit reason.
+inline_keys:
+  - code-conventions
+self_review_categories:
+  testing_bullet: "Did I re-run the failing Vitest spec? Did I run the api package typecheck (e.g. `pnpm --filter @<scope>/api typecheck`) clean? Did `gitnexus_detect_changes` confirm no contract-shape leak?"

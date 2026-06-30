@@ -1,0 +1,18 @@
+{
+  "//": "Per-persona MCP config for a browser-only Claude tester session.",
+  "//pin": "Declares EXACTLY ONE server (playwright). Combined with --strict-mcp-config and",
+  "//pin2": "--allowedTools \"mcp__playwright\", this fully describes the tester's capabilities.",
+  "//render": "Replace <ABS_PROJECT_DIR> and <PERSONA> before use; --output-dir MUST be absolute.",
+  "//isolated": "--isolated gives each tester a fresh, throwaway browser profile (no shared cookies/state).",
+  "mcpServers": {
+    "playwright": {
+      "command": "npx",
+      "args": [
+        "@playwright/mcp@latest",
+        "--isolated",
+        "--output-dir",
+        "<ABS_PROJECT_DIR>/.artifacts/screenshots/<PERSONA>"
+      ]
+    }
+  }
+}

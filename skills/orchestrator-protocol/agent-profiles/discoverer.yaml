@@ -1,0 +1,42 @@
+name: discoverer
+description: |
+  Wave-1 producer. Runs gates, classifies failures, files findings + .todo.md
+  tickets. Does NOT fix product bugs. May fix small test-only drift on its
+  own branch.
+subagent_type: tester            # or analyst / security-auditor / perf-analyzer
+                                  # depending on the workstream — orchestrator picks.
+default_budget: 150
+default_isolation: worktree
+default_run_in_background: true
+default_branch_naming: "<track>/<phase>-<slug>"   # e.g. fe/prod-real-api
+must_read_always: []              # TIER-0 only (see CONTEXT-INDEX.md). Producers don't pre-load anything else.
+index_keys:                       # TIER-1 — fetched in parallel at spawn
+  - t1-ticket-template            # producers file tickets
+  - t2-orch-state                 # know which wave is current
+code_intelligence: gitnexus       # discoverers run impact/query during triage even though they don't edit product code
+report_shape: standard            # see PROTOCOL.md §5
+pickup_protocol: none             # producers don't consume tickets
+allowed_actions:
+  - add or modify TESTS only
+  - fix test-only drift on its own branch
+  - file .todo.md tickets in .orchestrator/tasks/inbox/
+  - append finding entries under the project's findings tree
+forbidden_actions:
+  - editing product code
+  - committing to other branches
+  - auto-merging
+hard_rules:
+  - isolation=worktree
+  - tool budget 150
+  - conventional commits
+  - never push/force/amend
+notes: |
+  Subtypes the orchestrator may pick:
+  - tester for real-stack / e2e gates
+  - analyst for unit/integration triage
+  - security-auditor for RBAC / secret-scan re-verify
+  - perf-analyzer for perf-budget runs
+inline_keys:
+  - triage-rubric
+self_review_categories:
+  testing_bullet: "Does every finding have a repro path + acceptance criterion the consumer can verify? Did I file `.todo.md` for every finding (not just the headline ones)?"

@@ -1,0 +1,71 @@
+# AGENTS.md — per-build agent contract for {{PROJECT_NAME}}
+
+> Short, binding contract for any sub-agent spawned into this repo. Read `CLAUDE.md` first for the
+> conventions; this file is the operating rules. If a rule here conflicts with a task prompt, this
+> file wins — escalate the conflict, do not resolve it silently.
+
+## Architecture pointer
+
+- Conventions + the four append-only seams: `CLAUDE.md`.
+- Contract layer invariants: `{{CONTRACTS_PKG}}/CLAUDE.md`.
+- Module ownership (who owns which globs): `MODULES.md`.
+- What "done" means: the acceptance-criteria ledger at `{{AC_LEDGER_PATH}}` — every AC is **verified**
+  (a passing test for protected-core ACs, else live-app verification — see `CLAUDE.md` testing policy).
+
+## Ownership & coordination
+
+- You own **one module's globs** (see `MODULES.md`). Create and edit files only inside them.
+- You may **append** to the four shared seams (schema dir, API registry, nav registry, contracts
+  index) — one line each, never editing another module's line.
+- The **{{CONTRACTS_PKG}} `package.json` version bump is the only cross-track coordination signal.**
+  You do NOT bump it and you do NOT regenerate `openapi.yaml` / `api-types`. The integrator does
+  that once at merge. If your work needs a new contract shape, add the Zod schema + the one index
+  export line and STOP — flag it for the integrator.
+- Consume shared-infra modules ({{SHARED_INFRA_MODULES}}); never fork them.
+
+## Git discipline
+
+- **Every sub-agent runs in an isolated git worktree.** The main tree is read-only to you.
+- **Branch naming:** `{{TRACK}}/{{PHASE}}-{{TICKET_ID}}-s{{SESSION_SHORT}}`
+  (e.g. `api/fix-w1-be-03-sA7B9`). The session-short suffix guarantees concurrent sessions can't
+  collide; the ticket id makes `git log` readable.
+- **Conventional commits**, scoped to your module. Cite the AC / requirement id in the body
+  (`// {{REQ_ID_EXAMPLE}}`), never in user-facing strings.
+- **Commit your own branch. NEVER push.** The orchestrator/integrator handles all merges.
+- **Tag before you touch protected core.** Before any schema, migration, state-machine, RBAC, audit,
+  or temporal/SLA change, the orchestrator tags a checkpoint. If you're about to touch one of these
+  and no checkpoint exists, stop and escalate.
+- **Forbidden, always:** `git push`, `--force` / `--force-with-lease`, `commit --no-verify`,
+  `commit --amend`, `rebase` onto `origin/*`, any auto-merge, deleting tags, or editing history.
+  History rewriting is the integrator's job only, on a fresh `*-atomic` branch.
+
+## The merge gate (executable — run before you declare done)
+
+Your branch must be **independently green**. Run the universal gate locally:
+
+```bash
+{{TYPECHECK_CMD}}      # must be clean
+{{LINT_CMD}}           # must be clean
+{{UNIT_TEST_CMD}}      # green (changed + adjacent modules)
+{{CONTRACTS_BUILD_CMD}}# contracts build clean
+{{E2E_CMD}}            # browser/e2e green (mocked early; real composed stack late)
+```
+
+The orchestrator re-runs these gates itself and **never trusts a self-declared "done."** Capture the
+exact command output in your ticket's `## Resolution` block (commit SHA + gate result). A failure
+that already existed at the baseline (see `BASELINE-NOTES`) is not your regression — say so
+explicitly rather than papering over it.
+
+## Autonomy rules
+
+- **BRD/corpus silent?** Pick a **conservative default**, implement it, and log the decision in
+  `docs/open-questions.md` with the requirement gap and your chosen default. Never guess statutory,
+  financial, or rights-bearing behaviour — flag it instead.
+- **Three gate failures on the same ticket?** Stop. File a blocker: move the ticket to
+  `escalated/`, append `## Escalation reason` (what you tried, the failing output, your hypothesis).
+  Do not thrash a fourth time.
+- **Scope creep?** If the fix needs work outside your module's globs, do NOT reach across — file a
+  new ticket for the other module's owner. Producers never edit their own queued tickets; mistakes
+  become new tickets.
+- **Out of your depth on protected core?** Escalate rather than improvise. A silent wrong transition
+  or a missing audit row is worse than a blocked ticket.

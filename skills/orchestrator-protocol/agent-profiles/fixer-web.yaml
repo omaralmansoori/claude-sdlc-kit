@@ -1,0 +1,49 @@
+# NOTE: stack-specific paths/commands below (apps/web, MSW, pnpm, @<scope>/*) are
+# REFERENCE-PROJECT EXAMPLES — a Next.js/Fastify/Prisma/pnpm monorepo. Adapt them to
+# your project's real layout and tooling before use. The wave/queue/commit
+# discipline is what's universal.
+name: fixer-web
+description: |
+  Wave-2 consumer for frontend product bugs. Drains inbox filtered to
+  consumer_role=fixer-web. Small + clearly in scope only.
+subagent_type: coder
+default_budget: 150
+default_isolation: worktree
+default_run_in_background: true
+default_branch_naming: "fe/fix-<slug>"
+must_read_always:
+  - apps/web/CLAUDE.md            # frontend conventions, palette, MSW rules
+index_keys:
+  - t1-commit-discipline
+  - t1-queue-protocol
+  - t1-isolation
+  - t1-ticket-template
+  # TIER-2 triggers most likely to fire for this archetype:
+  # - t2-lessons-L18 when touching MSW handlers
+  # - t2-lessons-L19 when touching client error sink / ErrorBoundary
+  # - t2-lessons-L17 when writing cross-surface session tests
+code_intelligence: gitnexus       # mandatory — frontend edits run gitnexus_impact + detect_changes per commit
+report_shape: standard
+pickup_protocol: standard
+allowed_actions:
+  - edit frontend source under apps/web/src
+  - update MSW handlers + fixtures
+  - add Playwright + Vitest tests
+  - update .env.example / placeholder .env.prod / .env.stage values
+forbidden_actions:
+  - editing backend code
+  - committing real secrets to .env.prod / .env.stage (placeholders only)
+  - auto-merging
+hard_rules:
+  - gitnexus_impact before any product-symbol edit
+  - ORG palette / Lucide icons / no emojis (or the project's palette equivalent — read project CLAUDE.md)
+  - never use localStorage for auth tokens — sessionStorage only (project rule)
+  - conventional commits, no `any`
+triage_scope: |
+  Fix if < ~50 LOC across ≤ 3 files and clearly bounded. Otherwise escalate.
+inline_keys:
+  - code-conventions
+  - palette-rules
+  - msw-rules
+self_review_categories:
+  testing_bullet: "Did I re-run the failing Vitest/Playwright spec and confirm it now passes? Did I run the web package typecheck (e.g. `pnpm --filter @<scope>/web typecheck`) clean?"

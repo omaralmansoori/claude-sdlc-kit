@@ -1,0 +1,64 @@
+---
+id: {{WAVE}}-{{WORKSTREAM}}-{{SEQ}}        # e.g. w2-fixer-api-03  (w<wave>-<workstream>-<seq>)
+produced_by: {{PRODUCER_ID}}               # which agent/session filed this
+produced_at: {{ISO_TIMESTAMP}}             # ISO 8601, e.g. 2026-06-29T14:03:00Z
+consumer_role: {{CONSUMER_ROLE}}           # fixer-api | fixer-web | re-verifier | escalate
+priority: {{PRIORITY}}                     # critical | high | medium | low
+area: {{AREA}}                             # backend | web | a11y | perf | contract | infra | docs
+blocked_by: {{BLOCKED_BY}}                 # space-separated ticket ids, or "none"
+finding_ref: {{FINDING_REF}}               # path#anchor to the canonical finding, or "n/a"
+---
+
+# {{ONE_LINE_TITLE}}
+
+> The ticket carries **pointers, not the full requirement.** The canonical finding / AC / spec lives
+> at `finding_ref` — link it, don't copy it. The DIRECTORY is the status: `inbox/` → `in-progress/`
+> → `done/` (or `escalated/`). Tickets are **never deleted** and producers **never edit their own
+> queued tickets** — a mistake becomes a NEW ticket.
+
+## Context
+
+{{ONE_PARAGRAPH_WHAT_AND_WHY}} (cite the AC / requirement: `AC-{{AREA}}-NN`,
+`{{REQ_ID}}` — `{{KB_DIR}}/{{AREA_PATH}}/{{DOC}}.md:{{LINE}}`).
+
+## Reproduction (bug) OR Steps (chore)
+
+1. {{STEP_1}}
+2. {{STEP_2}}
+3. {{STEP_3}}
+
+## Acceptance criteria (this ticket is done when)
+
+- {{CRITERION_1}}
+- {{CRITERION_2}}
+- ACs to turn green: AC-{{AREA}}-NN, ...
+
+## Pointers
+
+- `file:line` — {{POINTER_CODE}}
+- AC / spec / BRD ref — {{POINTER_REQ}}
+- commit SHA (if referencing/reverting) — {{POINTER_SHA}}
+
+## Gate (must pass before `done/`)
+
+```bash
+{{GATE_CMD}}
+```
+
+<!-- ───────────────────────────────────────────────────────────────────────────
+The consumer appends ONE of the blocks below; it never edits the sections above.
+
+## Activity            (on moving inbox/ → in-progress/)
+- branch: {{BRANCH_NAME}}            # <track>/<phase>-<id>-s<session-short>
+- started: {{ISO_TIMESTAMP}}
+- notes: <progress, attempts>
+
+## Resolution          (on moving in-progress/ → done/)
+- changed: <what changed, which files/module>
+- commit: {{SHA}}
+- gate: <command rerun + result, e.g. "typecheck+lint+unit green; e2e green vs baseline">
+
+## Escalation reason   (on moving in-progress/ → escalated/  — e.g. 3rd gate failure)
+- <one paragraph: what you tried, the failing output, your hypothesis, why this is beyond
+  "small + clearly in scope">
+──────────────────────────────────────────────────────────────────────────── -->

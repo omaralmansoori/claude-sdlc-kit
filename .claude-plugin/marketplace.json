@@ -1,0 +1,18 @@
+{
+  "name": "claude-sdlc-kit",
+  "description": "From BRD to tested app - a disciplined multi-agent SDLC kit for Claude Code.",
+  "owner": {
+    "name": "omaralmansoori"
+  },
+  "plugins": [
+    {
+      "name": "claude-sdlc-kit",
+      "description": "Corpus->KB ingestion, the development-contract method, the orchestrator protocol, gated integration, and heavy parallel QA.",
+      "version": "0.1.0",
+      "source": "./",
+      "author": {
+        "name": "omaralmansoori"
+      }
+    }
+  ]
+}

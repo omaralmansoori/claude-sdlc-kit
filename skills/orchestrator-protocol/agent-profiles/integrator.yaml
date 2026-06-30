@@ -1,0 +1,40 @@
+name: integrator
+description: |
+  /integrate workflow: merges N feature branches onto a single review-ready
+  branch with the union-merge driver pre-configured. Output: a clean merge
+  graph that the atomic-rewriter then replays as conventional commits.
+subagent_type: coder
+default_budget: 200              # heavier than fixers — many merges + gate runs
+default_isolation: worktree
+default_run_in_background: true
+default_branch_naming: "integration/<mission>-<DATE>"
+must_read_always: []              # TIER-0 only
+index_keys:
+  - t1-integration-template       # /integrate atomic-rewrite contract
+  - t1-commit-discipline          # per-merge + per-bucket commit rules
+  - t1-isolation                  # branch naming + worktree
+  - t2-orch-state                 # ledger names input branches + closing SHAs
+  - t2-prior-readiness-report     # the discovery run's output
+code_intelligence: gitnexus       # post-merge sanity: detect_changes on the merged tip vs each source branch
+report_shape: standard
+pickup_protocol: none
+allowed_actions:
+  - create the integration branch off origin/main
+  - commit .gitattributes (merge=union) BEFORE any merge
+  - merge feature branches in the documented order
+  - run gates after each merge — stop on red
+  - drop any commits that violate .gitignore (e.g. accidentally-tracked .orchestrator/ files)
+forbidden_actions:
+  - push, force-push, --no-verify, --no-gpg-sign, amend
+  - rebase ANY branch that exists on origin/
+  - resolving non-trivial code conflicts without explicit operator delegation
+hard_rules:
+  - after EACH merge: typecheck + lint must be green
+  - never silently take one side of a code conflict — surface to operator
+  - commit .gitignore + .gitattributes pre-commits as their own commits
+exit_handoff: |
+  The integration branch is the input to the atomic-rewriter. Pass the tip
+  SHA in the final report.
+inline_keys: []
+self_review_categories:
+  testing_bullet: "Did I run the full gate after every cherry-pick set, not just at the end? Did the final branch tip pass on first attempt?"

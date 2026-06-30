@@ -1,0 +1,114 @@
+# Design Spec — module `{{MODULE_NAME}}`
+
+> One spec per vertical-slice module. This is the contract between "we understand the requirement"
+> and "we can decompose it into build tickets." It is written AFTER the AC ledger exists and BEFORE
+> the build plan. Cite the governing requirements throughout.
+>
+> **Design the data schema rigorously here, first.** Use the data-schema design method
+> (`skills/data-schema/` — pluggable) to derive a normalized, constraint-backed model from the KB
+> data catalog (effective-dated rows, append-only audit, polymorphic parents enforced by CHECK,
+> non-overlap exclusion constraints) BEFORE you write the build plan. The contract layer is generated
+> against this model, not hand-mirrored.
+
+- **Module:** `{{MODULE_NAME}}` · **Owner globs:** see `MODULES.md`
+- **Governing requirements:** `{{REQ_ID_PREFIX}}-*` in `{{KB_DIR}}/{{AREA_PATH}}/`
+- **ACs in scope:** `AC-{{AREA}}-{{AC_RANGE}}` (from `{{AC_LEDGER_PATH}}`)
+
+## 1. Context
+
+What this module does, in two or three sentences, and **why** (cite the requirement). What it
+deliberately does NOT do (scope boundary). Which other modules it consumes (shared-infra) and which
+consume it.
+
+## 2. Module shape & boundaries
+
+| Aspect | Value |
+|--------|-------|
+| Owned globs (web · api · contracts · db) | {{OWNED_GLOBS}} |
+| Append-only seams touched | (1) schema · (2) api registry · (3) nav · (4) contracts index |
+| Shared-infra consumed | {{SHARED_INFRA_MODULES}} |
+| Depends on (other modules) | {{MODULE_DEPS}} |
+
+## 3. Data model
+
+Design rigorously (see the data-schema note above). Document the entities, keys, and the
+**constraints that enforce invariants in the database**, not just in app code.
+
+| Entity | Key fields | Notable constraints (FK / CHECK / unique / exclusion / effective-dating) |
+|--------|-----------|--------------------------------------------------------------------------|
+| `{{ENTITY_1}}` | {{KEYS_1}} | {{CONSTRAINTS_1}} |
+| `{{ENTITY_2}}` | {{KEYS_2}} | {{CONSTRAINTS_2}} |
+
+- **Append-only audit:** which fields are audited (one row per changed field); reference the shared
+  audit primitive — do not hand-log.
+- **Effective-dating / temporal:** which rows are effective-dated and how non-overlap is enforced.
+
+## 4. Contracts & API surface
+
+Hand-written Zod is the source of truth (the integrator regenerates `openapi.yaml`/`api-types`).
+Sketch the schemas and the endpoints they back.
+
+```ts
+// {{CONTRACTS_PKG}}/src/{{MODULE_NAME}}.contract.ts
+export const {{SCHEMA_CREATE}} = z.object({ /* ... */ });
+export const {{SCHEMA_RESPONSE}} = z.object({ /* ... */ });
+// cross-field rules via .superRefine(...)
+```
+
+| Method | Path | Request schema | Response schema | Capability (RBAC) |
+|--------|------|----------------|-----------------|-------------------|
+| GET | `{{API_BASE}}/{{RESOURCE}}` | `{{LIST_QUERY}}` | `{{LIST_RESPONSE}}` | `{{CAP_READ}}` |
+| POST | `{{API_BASE}}/{{RESOURCE}}` | `{{SCHEMA_CREATE}}` | `{{SCHEMA_RESPONSE}}` | `{{CAP_CREATE}}` |
+| PATCH | `{{API_BASE}}/{{RESOURCE}}/:id` | `{{SCHEMA_UPDATE}}` | `{{SCHEMA_RESPONSE}}` | `{{CAP_UPDATE}}` |
+
+## 5. RBAC
+
+Authorization is a capability matrix + row-level read-scope — never inline `if` checks.
+
+| Capability | Roles that hold it | Row-level read-scope |
+|-----------|--------------------|----------------------|
+| `{{CAP_READ}}` | {{ROLES_READ}} | {{READ_SCOPE}} |
+| `{{CAP_CREATE}}` | {{ROLES_CREATE}} | — |
+| `{{CAP_UPDATE}}` | {{ROLES_UPDATE}} | {{UPDATE_SCOPE}} |
+
+"To change who can do X, edit the matrix row for X" — record where that row lives
+(`{{RBAC_MATRIX_PATH}}`).
+
+## 6. Audit
+
+| Audited field | Trigger | Audit row content |
+|---------------|---------|-------------------|
+| `{{FIELD_1}}` | on change | old → new, actor, timestamp |
+| `{{FIELD_2}}` | on change | old → new, actor, timestamp |
+
+One row per changed field; append-only; no in-band UPDATE/DELETE.
+
+## 7. State machine
+
+If this module owns a stateful entity, define its states and **guarded transitions** explicitly
+(never a free `PATCH status`).
+
+| From | To | Guard / who | Side effects |
+|------|----|-------------|--------------|
+| `{{STATE_A}}` | `{{STATE_B}}` | {{GUARD_AB}} | {{SIDE_EFFECTS_AB}} |
+| `{{STATE_B}}` | `{{STATE_C}}` | {{GUARD_BC}} | {{SIDE_EFFECTS_BC}} |
+
+Record where the transition map lives (`{{STATE_MACHINE_PATH}}`). Note cross-stage transitions
+(transfer, handover, emergency, early closure) explicitly.
+
+## 8. Acceptance criteria sub-family
+
+The ACs this spec satisfies, copied (by id) from the ledger. Each must end up **verified** — a passing
+test for protected-core ACs (state machine, RBAC, audit, snapshot, temporal/SLA, scoring), else
+live-app verification (see PLAYBOOK §7, the testing policy).
+
+| AC id | Requirement (short) | Surface | Verified by |
+|-------|---------------------|---------|-------------|
+| AC-{{AREA}}-01 | {{AC_1_SHORT}} | `[both]` | {{TEST_1}} |
+| AC-{{AREA}}-02 | {{AC_2_SHORT}} | `[backend]` | {{TEST_2}} |
+| AC-{{AREA}}-NN | … | … | … |
+
+## 9. Open questions
+
+Anything the corpus left ambiguous + the conservative default chosen. Mirror these into
+`docs/open-questions.md`; do not invent statutory behaviour.

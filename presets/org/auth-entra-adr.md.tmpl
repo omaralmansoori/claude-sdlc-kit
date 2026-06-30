@@ -1,0 +1,149 @@
+# ADR {NNNN}: Authentication — Entra ID (Azure AD) OIDC SSO behind an `IAuthProvider`
+
+- **Status:** {Proposed | Accepted | Superseded by ADR-XXXX}
+- **Date:** {YYYY-MM-DD}
+- **Deciders:** {names/roles}
+- **Context tags:** auth, sso, oidc, entra, security
+
+> Copy this template to `docs/adr/{NNNN}-auth-entra.md` and fill in the placeholders.
+> Keep it sanitized: **no real tenant IDs, client IDs, secrets, or redirect hostnames in the
+> repo.** Those live in your secrets manager and are referenced by env-var name only.
+
+---
+
+## Context
+
+The application must authenticate staff against the organization's identity provider —
+**Microsoft Entra ID (Azure AD)** — using OIDC SSO, while remaining fully runnable in local
+dev and CI **without** a live tenant. We also need clean, fast persona switching for QA
+(the heavy-QA browser-tester farm needs to log in as each role deterministically).
+
+Two forces pull in opposite directions:
+
+1. **Production** needs real, standards-based, audited SSO with no local password store.
+2. **Dev / test / QA** needs zero-friction, offline, deterministic login as an arbitrary
+   persona — and must be **incapable** of being switched on in production.
+
+## Decision
+
+Introduce a single seam — **`IAuthProvider`** — and select the concrete implementation at
+runtime from an environment variable. The rest of the app depends only on the interface and a
+normalized `Session`, never on Entra specifics.
+
+```ts
+// contracts: the only auth shape the app knows about
+interface Session {
+  userId: string;        // stable subject id (oid for Entra, fixture id for mock)
+  displayName: string;
+  email: string;
+  roles: Role[];         // IN-APP roles, already mapped from provider claims
+  locale: 'en' | 'ar';
+  expiresAt: number;     // epoch ms; short-lived
+}
+
+interface IAuthProvider {
+  beginLogin(returnTo: string): Promise<{ redirectUrl: string; loginState: string }>;
+  completeLogin(params: CallbackParams): Promise<Session>;
+  logout(session: Session): Promise<{ redirectUrl?: string }>;
+}
+```
+
+### Provider selection
+
+```
+AUTH_PROVIDER = mock | entra
+```
+
+| Value | Provider | Registered when |
+|-------|----------|-----------------|
+| `mock` | `MockAuthProvider` | dev / test / CI **only** |
+| `entra` | `EntraAuthProvider` | staging / prod |
+
+**Guardrail (non-negotiable):** the DI/registration code registers `MockAuthProvider`
+**only** under `AUTH_PROVIDER=mock`, and the build refuses to start if `AUTH_PROVIDER=mock`
+is seen alongside a production `NODE_ENV`/`APP_ENV`. The mock must be structurally impossible
+to reach in production, not merely discouraged.
+
+---
+
+### `MockAuthProvider` (dev / test / QA)
+
+- Presents a **persona picker**: a small list of seeded fixture users, one per in-app `Role`.
+- `completeLogin` returns a `Session` for the chosen persona immediately — no network, no
+  tenant, fully offline and deterministic.
+- Used by the heavy-QA browser-tester sessions so each persona logs in identically every run.
+- Emits the **same** normalized `Session` shape as the real provider, so nothing downstream
+  can tell which provider produced it. The mock is the only place fixture identities exist.
+
+### `EntraAuthProvider` (production)
+
+Implements **OIDC Authorization Code flow with PKCE**:
+
+1. **`beginLogin`** generates a PKCE `code_verifier`/`code_challenge` and a CSRF/replay nonce,
+   packs them (plus `returnTo`) into a **stateless, signed, short-lived `login_state` token**
+   (no server-side session store needed for the in-flight handshake), and redirects the
+   browser to the Entra `/authorize` endpoint.
+2. **`completeLogin`** receives the `code` + `state`, verifies the `login_state` token,
+   exchanges the code at the `/token` endpoint using the `code_verifier`, and gets back an
+   `id_token`.
+3. **`id_token` verification** uses **`jose`** against Entra's **JWKS** (cached, key-rotation
+   aware): validate signature, `iss`, `aud`, `exp`/`nbf`, and the nonce. Reject anything that
+   fails — never trust an unverified token.
+4. **Claim -> Role mapping:** read the **app-role claim** (the Entra app-registration App Roles
+   assigned to the user) and map it through an explicit, reviewable table to the in-app
+   `Role[]`. Unknown/unmapped claims map to **no role** (deny by default), never to a fallback
+   privileged role.
+5. **Session issuance:** mint a **short-lived session JWT** (or equivalent signed cookie)
+   carrying the normalized `Session`. Short TTL + silent re-auth against Entra; the session
+   JWT is the app's own currency, distinct from the Entra `id_token` (which is not reused as
+   the app session).
+
+```
+# Entra env (names only — values live in the secrets manager)
+AUTH_PROVIDER=entra
+ENTRA_TENANT_ID={from-secrets-manager}
+ENTRA_CLIENT_ID={from-secrets-manager}
+ENTRA_CLIENT_SECRET={from-secrets-manager}     # or a federated/managed credential
+ENTRA_REDIRECT_URI=https://{app-host}/auth/callback
+ENTRA_AUTHORITY=https://login.microsoftonline.com/{ENTRA_TENANT_ID}/v2.0
+SESSION_JWT_SIGNING_KEY={from-secrets-manager}
+SESSION_TTL_SECONDS=900
+```
+
+---
+
+## Consequences
+
+**Positive**
+
+- App code depends on `IAuthProvider` + `Session` only — Entra is swappable and testable.
+- Dev/CI/QA run offline and deterministically; no tenant needed to build or test.
+- PKCE + JWKS verification + nonce is the current OIDC best practice for a confidential
+  web client; stateless `login_state` keeps the handshake horizontally scalable.
+- In-app roles are decoupled from Entra claim strings by one explicit mapping table — the
+  single place to change "which Entra App Role grants which in-app Role."
+
+**Negative / watch-items**
+
+- The `mock`-in-prod guardrail is **protected core** — cover it with a test that asserts the
+  app refuses to boot with `AUTH_PROVIDER=mock` under a production env.
+- JWKS caching must honor key rotation (respect cache TTL / `kid` misses -> refetch once).
+- Role-mapping drift: when Entra App Roles change, the mapping table and the Authority Matrix
+  (see `protected-core-checklist.md`) must move together. Treat a mapping change as a
+  reviewed, audited change.
+- Clock skew: allow a small leeway on `exp`/`nbf` validation; do not disable expiry checks.
+
+## Alternatives considered
+
+| Option | Why not (here) |
+|--------|----------------|
+| Implicit flow / token in URL fragment | Deprecated for web apps; leaks tokens. PKCE Auth Code is the standard. |
+| Reuse Entra `id_token` as the app session | Couples app to provider token lifetime/shape; mint our own short-lived session JWT instead. |
+| Server-side session store for the in-flight handshake | Unneeded state; the signed stateless `login_state` token avoids it and scales out. |
+| Roles as raw Entra group GUIDs checked inline | Scatters identity coupling through the code; map once to in-app `Role`, deny-by-default. |
+
+## References
+
+- In-app RBAC / Authority Matrix: `presets/org/protected-core-checklist.md`
+- Contract boundary (the `Session`/`Role` shapes are owned by the contracts package): core kit
+  `toolkit/conventions/contracts-package-CLAUDE.md.tmpl`

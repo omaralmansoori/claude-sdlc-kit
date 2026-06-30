@@ -1,0 +1,24 @@
+# OS / editor
+.DS_Store
+
+# Python (ingestion toolkit)
+__pycache__/
+*.pyc
+.venv/
+venv/
+*.egg-info/
+
+# Node (if a target project is vendored for testing)
+node_modules/
+
+# Runtime artifacts (these belong in target projects, never in the kit)
+.orchestrator/
+.artifacts/
+*.log
+/*.png
+/*.jpg
+*-snapshot.yml
+
+# Secrets / env
+.env
+.env.local

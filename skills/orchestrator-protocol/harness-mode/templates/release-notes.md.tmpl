@@ -1,0 +1,79 @@
+# RELEASE-NOTES-{{MISSION}}-{{DATE}}.md
+
+**Mission:** {{MISSION_NAME}}
+**Tag:** `checkpoint/{{MISSION_SLUG}}-{{DATE}}`
+**Run ID:** {{RUN_ID}}
+**Operator:** {{OPERATOR}}
+
+---
+
+## Summary
+
+{{ONE_PARAGRAPH_SUMMARY}}
+
+---
+
+## Changes by type
+
+### feat ({{COUNT_FEAT}})
+
+{{FEAT_COMMITS_TABLE}}
+
+### fix ({{COUNT_FIX}})
+
+{{FIX_COMMITS_TABLE}}
+
+### perf ({{COUNT_PERF}})
+
+{{PERF_COMMITS_TABLE}}
+
+### chore ({{COUNT_CHORE}})
+
+{{CHORE_COMMITS_TABLE}}
+
+### docs ({{COUNT_DOCS}})
+
+{{DOCS_COMMITS_TABLE}}
+
+### test ({{COUNT_TEST}})
+
+{{TEST_COMMITS_TABLE}}
+
+---
+
+## Breaking changes
+
+{{BREAKING_CHANGES_LIST_OR_NONE}}
+
+## Migration steps
+
+{{MIGRATION_STEPS_OR_NONE}}
+
+## New / updated dependencies
+
+{{DEP_DIFF_OR_NONE}}
+
+---
+
+## Run summary
+
+| Metric | Count |
+|---|---|
+| Sub-agents spawned | {{SPAWN_COUNT}} |
+| Tasks closed | {{TASKS_DONE}} |
+| Tasks escalated | {{TASKS_ESCALATED}} |
+| Tests added | {{TESTS_ADDED}} |
+| Migrations / schema changes | {{MIGRATIONS}} |
+| MANIFEST coverage delta | {{SD_COVERAGE_DELTA}} |
+
+## Branches integrated
+
+{{BRANCH_TABLE}}
+
+---
+
+## Operator instructions
+
+```bash
+{{NEXT_STEP_COMMANDS}}
+```

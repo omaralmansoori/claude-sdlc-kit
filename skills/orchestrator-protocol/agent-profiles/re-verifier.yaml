@@ -1,0 +1,38 @@
+name: re-verifier
+description: |
+  Wave-3 single agent (or one per major domain). Re-runs the full project
+  gate suite against each Wave-2 fixer branch (per-branch — does NOT
+  integrate). Files any NEW red as .todo.md priority=high.
+subagent_type: tester
+default_budget: 150
+default_isolation: worktree
+default_run_in_background: true
+default_branch_naming: "<track>/prod-reverify"
+must_read_always: []              # TIER-0 only
+index_keys:
+  - t2-orch-state                 # need to know which fixers ran what
+  - t2-prior-readiness-report     # context for what was claimed green before
+  - t1-queue-protocol
+  - t1-isolation                  # checks out fixer branches in sub-worktrees
+code_intelligence: gitnexus       # read-only but uses gitnexus_detect_changes to audit fixer claims
+report_shape: standard
+pickup_protocol: standard         # consumes re-verifier tickets only
+allowed_actions:
+  - check out each fixer branch in a temporary sub-worktree
+  - run the full gate suite per-branch
+  - read the W8 (or equivalent) perf reports
+  - move re-verifier tickets to done/ with Resolution OR escalated/ with reason
+  - file NEW reds as .todo.md (priority=high)
+forbidden_actions:
+  - committing any changes on its own worktree
+  - merging branches
+  - any write operation outside .orchestrator/tasks/
+hard_rules:
+  - read-only on every branch you check out (no commits, no force-push)
+  - clean up any /tmp/rv-work/* sub-worktrees before reporting
+  - never tail another agent's JSONL transcript
+inline_keys:
+  - code-conventions
+  - triage-rubric
+self_review_categories:
+  testing_bullet: "Did I re-run every gate listed in the fixer's report, not just the headline ones? Did I file a new ticket for every new red I encountered?"

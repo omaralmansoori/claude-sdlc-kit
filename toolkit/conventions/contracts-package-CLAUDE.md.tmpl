@@ -1,0 +1,73 @@
+# CLAUDE.md — {{CONTRACTS_PKG}} (the contract layer)
+
+> This package is the **single source of truth** for every request/response shape that crosses the
+> backend↔frontend boundary. Treat it as protected core. Read this before touching anything here.
+
+## The generation chain (one direction only)
+
+```
+hand-written Zod schemas   ──zod-to-openapi──▶   openapi.yaml   ──openapi-typescript──▶   api-types
+   (you write these)            (generated)        (generated)            (generated)
+```
+
+- **Zod is the source of truth.** Real runtime validation, Zod-first — not OpenAPI-first.
+- **`openapi.yaml` is generated.** Never hand-edit it. If it's wrong, fix the Zod schema and
+  regenerate.
+- **`api-types` (the generated TypeScript) is generated.** Never hand-edit it. The web app imports
+  from `api-types`; the API validates incoming/outgoing payloads with the matching Zod schema at
+  every route edge.
+
+If you ever find yourself editing `openapi.yaml` or `api-types` by hand, stop — you are editing an
+output. Change the Zod schema instead.
+
+## Layout
+
+| Path | What it is | Who edits |
+|------|-----------|-----------|
+| `src/<module>.contract.ts` | one module's Zod schemas (request, response, params) | that module's agent |
+| `src/index.ts` | append-only barrel: one `export *` line per module | each module appends ONE line |
+| `openapi.yaml` | generated spec | nobody (generated) |
+| `src/api-types.ts` (or `dist/`) | generated TS types | nobody (generated) |
+| `package.json` `version` | the cross-track coordination signal | **integrator only** |
+
+## The version bump is the ONLY cross-track coordination signal
+
+- A bump of `{{CONTRACTS_PKG}}` `package.json` `version` tells the frontend "the contract changed —
+  resync your generated types." It is the single, explicit BE↔FE handshake.
+- **ONLY the integrator bumps the version and regenerates** `openapi.yaml` + `api-types`, **once**,
+  at merge. This is deliberate: if every parallel agent bumped the version and regenerated, every
+  branch would collide on the same generated files and the version number would be meaningless.
+- As a module agent: add your `*.contract.ts`, append your one `export *` line to `src/index.ts`,
+  and STOP. Do not run the generator, do not bump the version. Flag the new/changed shape for the
+  integrator in your ticket.
+
+## Cross-field invariants go in `superRefine`
+
+Single-field rules are plain Zod (`.min()`, `.email()`, enums). **Relationships between fields**
+(end-after-start, "if A then B required", mutually-exclusive options, conditional requiredness) are
+expressed with `.superRefine()` so the rule lives **in the contract**, validated identically on both
+sides — not re-implemented in a handler or a form.
+
+```ts
+export const {{EXAMPLE_SCHEMA}} = z.object({
+  startsOn: z.string().date(),
+  endsOn: z.string().date(),
+  reason: z.string().optional(),
+  kind: z.enum(["a", "b"]),
+}).superRefine((v, ctx) => {
+  if (v.endsOn < v.startsOn) {
+    ctx.addIssue({ code: "custom", path: ["endsOn"], message: "must be on or after startsOn" });
+  }
+  if (v.kind === "b" && !v.reason) {
+    ctx.addIssue({ code: "custom", path: ["reason"], message: "required when kind is b" });
+  }
+});
+```
+
+## Don't
+
+- Don't hand-edit `openapi.yaml` or any generated `api-types`.
+- Don't bump the version or regenerate in a feature branch — integrator only.
+- Don't re-implement a cross-field rule in a handler/form that you could express once in
+  `superRefine`.
+- Don't add a contract shape without the matching `export *` line in `src/index.ts`.

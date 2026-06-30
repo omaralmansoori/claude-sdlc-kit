@@ -1,0 +1,42 @@
+# MODULES.md — {{PROJECT_NAME}} ownership registry
+
+> The authoritative map of **who owns which files**. Parallel safety depends on this being exact and
+> non-overlapping. An agent works inside ONE module's globs and appends to the shared seams; it never
+> edits files owned by another module.
+
+## How to read this
+
+- **Owns globs** = the only paths a module's agent may create or edit. Globs MUST NOT overlap between
+  modules. If two modules need the same file, that file belongs to a shared-infra module they both
+  consume (see below).
+- **Append-only seams touched** = which of the four shared seams this module appends a line to. It
+  appends; it never edits another module's line. (`.gitattributes` marks these `merge=union`.)
+- The four seams: **(1)** DB schema dir `{{SCHEMA_DIR}}/` · **(2)** API registry
+  `{{API_REGISTRY_PATH}}` · **(3)** nav registry `{{NAV_REGISTRY_PATH}}` · **(4)** contracts index
+  `{{CONTRACTS_PKG}}/src/index.ts`.
+
+## Registry
+
+| Module | Owns globs (web · api · contracts · db) | Append-only seams touched |
+|--------|------------------------------------------|---------------------------|
+| `_base` (shared infra) | db: `{{SCHEMA_DIR}}/_base.{{SCHEMA_EXT}}` · contracts: `{{CONTRACTS_PKG}}/src/_base.contract.ts` | (1) (4) — consumed, never forked |
+| `{{MODULE_1}}` | web: `{{WEB_DIR}}/{{MODULE_1}}/**` · api: `{{API_DIR}}/{{MODULE_1}}/**` · contracts: `{{CONTRACTS_PKG}}/src/{{MODULE_1}}.contract.ts` · db: `{{SCHEMA_DIR}}/{{MODULE_1}}.{{SCHEMA_EXT}}` | (1) (2) (3) (4) |
+| `{{MODULE_2}}` | web: `{{WEB_DIR}}/{{MODULE_2}}/**` · api: `{{API_DIR}}/{{MODULE_2}}/**` · contracts: `{{CONTRACTS_PKG}}/src/{{MODULE_2}}.contract.ts` · db: `{{SCHEMA_DIR}}/{{MODULE_2}}.{{SCHEMA_EXT}}` | (1) (2) (3) (4) |
+| `{{MODULE_N}}` | ... | ... |
+
+## Rules
+
+1. **A new capability = a new row.** Adding a feature means adding a module row here with its own
+   non-overlapping globs — not widening an existing module's globs. The PR that introduces a module
+   adds its row in the same change.
+2. **Shared-infra modules are consumed, never forked.** `_base` (cross-cutting DB models),
+   `{{SHARED_INFRA_MODULES}}` (auth/RBAC primitives, audit, the contract layer) are imported by
+   feature modules. If you need a change in a shared-infra module, file a ticket against its owner;
+   do not copy its code into your module.
+3. **No glob overlaps — ever.** If you can't express your module's ownership without overlapping
+   another's, the boundary is wrong: refactor the shared part into an infra module both consume.
+4. **Seams are append-only.** Touching a seam means adding one line. Editing or reordering another
+   module's seam line is forbidden (and `merge=union` will silently keep both if you try — so be
+   disciplined).
+5. **The integrator owns generated outputs.** No module owns `openapi.yaml`, `api-types`, or the
+   contracts `package.json` version — those are regenerated/bumped once at integration.

@@ -1,0 +1,18 @@
+# Local extractor dependencies for the ingestion pillar.
+#
+# These cover the two formats markitdown can't handle on its own:
+#   - .xlsx/.xls  ->  openpyxl   (extractors/xlsx_to_md.py)
+#   - .vsdx       ->  vsdx        (extractors/vsdx_to_md.py; a stdlib fallback
+#                                  also works if vsdx is absent)
+#
+# NOTE: markitdown is intentionally NOT listed here. It runs from an isolated
+# pipx venv on Python 3.13 (Python 3.14 has wheel gaps for its deps), installed
+# by setup.sh:
+#
+#   pipx install --python python3.13 'markitdown[docx,pptx,pdf,xlsx,xls]'==0.1.6
+#
+# Keeping markitdown out of this venv avoids dependency conflicts and keeps the
+# router (ingest.py) dependency-light — it shells out to the markitdown CLI.
+
+openpyxl>=3.1
+vsdx>=0.5

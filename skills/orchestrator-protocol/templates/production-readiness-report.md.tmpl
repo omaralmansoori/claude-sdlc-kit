@@ -1,0 +1,98 @@
+# {{MISSION_NAME_UPPER}}-READINESS.md
+
+**Date:** {{DATE}}
+**Orchestrator branch:** {{ORCH_BRANCH}} (read-only)
+**Run ID:** {{RUN_ID}}
+**Operator:** {{OPERATOR}}
+
+This report is the consolidated output of the {{ORCHESTRATOR_TITLE}} run.
+
+---
+
+## Verdict per workstream
+
+| Workstream | Status | One-line rationale |
+|---|---|---|
+{{WORKSTREAM_VERDICT_ROWS}}
+
+Legend: ✅ GREEN · 🟡 PARTIAL · 🔴 RED · 🟦 GREEN-WITH-NOISE.
+
+---
+
+## Counts
+
+| Metric | Count |
+|---|---|
+| Sub-agents spawned | {{SPAWN_COUNT}} |
+| Sub-agents completed cleanly | {{CLEAN_COUNT}} |
+| Sub-agents that errored | {{ERROR_COUNT}} |
+| Tickets filed | {{TICKETS_FILED}} |
+| Tickets closed (done/) | {{TICKETS_DONE}} |
+| Tickets escalated (escalated/) | {{TICKETS_ESCALATED}} |
+| Tickets in-flight | {{TICKETS_INFLIGHT}} |
+| Tests added | {{TESTS_ADDED}} |
+| Tests fixed | {{TESTS_FIXED}} |
+| Findings filed | {{FINDINGS_FILED}} |
+| Migrations / schema changes | {{MIGRATIONS}} |
+
+---
+
+## Branches produced
+
+| # | Branch | Tip SHA | Owner | Summary |
+|---|---|---|---|---|
+{{BRANCH_TABLE_ROWS}}
+
+### Recommended integration order
+
+{{INTEGRATION_ORDER_LIST}}
+
+### Known conflicts to resolve manually
+
+{{KNOWN_CONFLICTS_OR_NONE}}
+
+---
+
+## RED tracker — what still blocks ship
+
+| # | Severity | Workstream | Title | Required action |
+|---|---|---|---|---|
+{{RED_TRACKER_ROWS}}
+
+---
+
+## Definition-of-done checklist
+
+| # | Requirement | Status | Notes |
+|---|---|---|---|
+{{DOD_ROWS}}
+
+**Ship signal:** {{SHIP_SIGNAL}}
+
+---
+
+## Files of interest
+
+- Plan: `docs/{{MISSION_SLUG}}-plan-{{DATE}}.md`
+- Orchestrator state: `.orchestrator/state.md`
+- Closed tickets: `.orchestrator/tasks/done/` ({{TICKETS_DONE}} entries)
+- Escalated tickets: `.orchestrator/tasks/escalated/` ({{TICKETS_ESCALATED}} entries)
+- Findings: `{{FINDINGS_PATH}}`
+- Open questions: `docs/open-questions.md`
+{{ADDITIONAL_FILES_OF_INTEREST}}
+
+---
+
+## Operator's next steps
+
+```bash
+{{NEXT_STEP_COMMANDS}}
+```
+
+Tag `checkpoint/{{MISSION_SLUG}}-{{DATE}}` ONLY after every workstream is green AND no critical RED-tracker rows remain.
+
+---
+
+## Lessons learned (append to ~/.claude/skills/orchestrator-protocol/LESSONS.md)
+
+{{NEW_LESSONS_BLOCK_OR_NONE}}

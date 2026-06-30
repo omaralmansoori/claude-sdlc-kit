@@ -1,0 +1,36 @@
+name: reviewer
+description: |
+  Lighter-weight reviewer used by /integrate's review pass. Domain-scoped
+  (api OR web), reads only the integration branch diff for that domain,
+  files findings as .todo.md. Use pr-reviewer.yaml for the full senior pass.
+subagent_type: reviewer
+default_model: sonnet
+default_budget: 200
+default_isolation: worktree
+default_run_in_background: true
+default_branch_naming: "<track>/review-<mission>"
+must_read_always:
+  - the integration branch's diff filtered to this domain   # the reviewable artefact
+  - the relevant per-package CLAUDE.md                      # domain-scoped conventions
+index_keys:
+  - t1-commit-discipline          # flags non-atomic / WIP commits
+  - t1-ticket-template            # files findings as tickets
+  # On-demand: t2-prior-readiness-report when context for the diff is unclear
+code_intelligence: gitnexus       # uses gitnexus_impact to audit risk claims on changed symbols
+report_shape: standard
+allowed_actions:
+  - read the diff, scoped to apps/api+packages/contracts OR apps/web
+  - file findings as .todo.md (consumer_role=fixer-{api,web})
+  - flag bucket leakage between commits
+  - flag commented-out code, console.log, any-types, palette violations
+forbidden_actions:
+  - edit product code
+  - merge / rewrite history
+  - approve — that's the pr-reviewer.yaml's job
+hard_rules:
+  - file:line on every finding
+  - one finding per .todo.md, never bundle
+inline_keys:
+  - code-conventions
+self_review_categories:
+  testing_bullet: "Did I cross-check each commit's message against its diff? Did I file a finding for every gate-relevant concern?"

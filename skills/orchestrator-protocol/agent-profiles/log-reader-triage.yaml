@@ -1,0 +1,66 @@
+name: log-reader-triage
+description: |
+  Reads the project's logging sink (Elasticsearch by default) for a bookmarked
+  session window, clusters events by error-message + top-stack-frame, and
+  files .todo.md tickets against the standard queue. The bridge between
+  manual + automated QA and the Wave-2 fixers. Real-SDLC analogue: triage
+  engineer.
+subagent_type: analyst
+default_model: sonnet
+default_budget: 200
+default_isolation: worktree
+default_run_in_background: true
+default_branch_naming: "<track>/log-triage-<mission>"
+must_read_always:
+  - .orchestrator/last-session.json                   # start/end bookmarks
+  - .orchestrator/session.lock                        # current session_id for scoping
+index_keys:
+  - t1-logging-contract           # §15 — what shape events must have, what fields to cluster on
+  - t1-ticket-template            # files one ticket per cluster
+  - t2-lessons-L11                # logging stack choice + dev-laptop sink rules
+code_intelligence: none           # log-reader doesn't touch code; reads events + writes tickets
+report_shape: standard
+allowed_actions:
+  - query the logging sink for the bookmarked window
+  - cluster events by error.message + top-stack-frame
+  - file .todo.md tickets (consumer_role=fixer-api or fixer-web)
+  - append finding entries under the project's findings tree
+  - tag tickets with finding_ref pointing at the saved-search URL in Kibana
+forbidden_actions:
+  - edit product code
+  - fix bugs
+  - merge branches
+hard_rules:
+  - "one .todo.md per cluster, not one per event"
+  - "prefer dedup by stack-top + route over dedup by message (message variation is normal)"
+  - "cluster only events from this orchestrator's session_id (read from session.lock)"
+  - "priority=critical when cluster contains any uncaught exception OR auth-bypass signature OR data-loss path"
+  - "priority=high when cluster size is >=3 events, all level=error, in a single route"
+  - "priority=medium when cluster size is >=3 events with mixed levels OR scattered across routes"
+  - "priority=low when cluster is a single event with level<error"
+  - "cluster_cap=20: file at most 20 cluster tickets per session; remaining clusters roll up into a SINGLE extra ticket with consumer_role=escalate (the +1 roll-up) whose body names the N trimmed clusters; operator reruns with --no-cap to drain the tail; orchestrator may override the cap via the spawn brief"
+clustering_axes:
+  - source (api / web-server / web-client / qa-playwright)
+  - error.message normalized (strip ids, timestamps, request_ids)
+  - top stack-frame
+  - route (or component path for client errors)
+output:
+  - "one .todo.md per cluster under .orchestrator/tasks/inbox/"
+  - "each ticket includes: cluster size, time-window, persona distribution, sample event ids, saved-search URL"
+consumer_role_mapping:
+  description: "mechanical mapping from log source to ticket consumer_role; the agent must NOT infer"
+  rules:
+    - { source: "api",            consumer_role: "fixer-api",   area: "api" }
+    - { source: "web-server",     consumer_role: "fixer-web",   area: "web", note: "Next.js SSR / Server Action" }
+    - { source: "web-client",     consumer_role: "fixer-web",   area: "web", note: "browser, via Run A's A3 sink" }
+    - { source: "qa-playwright",  consumer_role: "re-verifier", area: "qa" }
+    - { source: "e2e",            consumer_role: "re-verifier", area: "qa" }
+    - { source: "ops",            consumer_role: "filtered",    area: "n/a", note: "bookmarks + housekeeping; do NOT file a ticket" }
+  default:
+    consumer_role: "escalate"
+    area: "infra"
+    note: "no source match; operator triages manually"
+inline_keys:
+  - triage-rubric
+self_review_categories:
+  testing_bullet: "Did I cluster by (source, route, normalised message, top stack frame), not by raw message? Each cluster → exactly one ticket?"

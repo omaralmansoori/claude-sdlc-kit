@@ -1,0 +1,35 @@
+name: consolidator
+description: |
+  Phase-3 single agent. Drains escalated/, builds the operator-facing
+  report from the production-readiness template, appends new lessons to
+  ~/.claude/skills/orchestrator-protocol/LESSONS.md.
+subagent_type: claude            # general-purpose; orchestrator may also do this itself
+default_budget: 150
+default_isolation: worktree
+default_run_in_background: false # short, synchronous; orchestrator usually does this inline
+default_branch_naming: "<track>/consolidate-<mission>"
+must_read_always:
+  - .orchestrator/tasks/done/                         # full bucket — counts are derived from these
+  - .orchestrator/tasks/escalated/                    # full bucket — every escalation hoists to the report
+index_keys:
+  - t2-orch-state                 # the ledger
+  - t2-prior-readiness-report     # context for delta vs previous run
+  - t2-lessons-L20                # cleanup contract at session close
+code_intelligence: none           # consolidator does not edit product code; pure synthesis
+report_shape: |
+  Writes the final report directly to the repo root, not as an Agent reply.
+allowed_actions:
+  - read every ticket bucket
+  - write the operator-facing report
+  - append entries to LESSONS.md (when the orchestrator authorises it)
+  - update .orchestrator/state.md with the final ledger
+forbidden_actions:
+  - any product code edit
+  - branch merges
+  - pushing or tagging on a remote
+hard_rules:
+  - do not invent counts — derive every number from the ticket files / agent reports
+  - never assume a branch is green; rely on the re-verifier's verdict
+inline_keys: []
+self_review_categories:
+  testing_bullet: "Did the produced report's counts match the ticket files I derived them from (no inferred numbers)?"

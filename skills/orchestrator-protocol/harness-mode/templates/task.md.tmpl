@@ -1,0 +1,69 @@
+---
+id: TASK-{{NNNN}}
+title: {{ONE_LINE_TITLE}}
+module: {{MODULE_NAME}}
+sd_items: [{{SD_REFS_OR_EMPTY}}]
+domain: {{DOMAIN}}                    # frontend | backend | data | infra | integration | qa | docs | design | security | perf
+priority: {{PRIORITY}}                # P0 | P1 | P2 | P3
+complexity: {{COMPLEXITY}}            # S | M | L | XL
+depends_on: [{{DEP_TASK_IDS_OR_EMPTY}}]
+blocks: [{{BLOCK_TASK_IDS_OR_EMPTY}}]
+suggested_agent: {{AGENT_NAME}}       # must match a file under agent-profiles/
+status: {{STAGE}}                     # mirror of stage-folder
+checkpoint_candidate: {{TRUE_OR_FALSE}}
+ui_weight: {{NONE_LIGHT_HEAVY}}
+user_surfaces: [{{ROUTES_OR_EMPTY}}]
+existing_app_touchpoints: [{{FILE_PATHS_OR_EMPTY}}]
+existing_flows_at_risk: [{{FLOW_NAMES_OR_EMPTY}}]
+defaults_applied: [{{DEF_REFS_OR_EMPTY}}]
+created: {{ISO_DATE}}
+session_id: {{ORCHESTRATOR_SESSION_OR_EMPTY}}
+---
+
+## Context
+
+{{ONE_PARAGRAPH_CONTEXT_FROM_BRD_OR_MODULE}}
+
+## Existing-App Reuse
+
+{{WHAT_EXISTS_THAT_WE_REUSE — FILE_PATHS_AND_FUNCTIONS}}
+
+## UI Guidance
+
+{{IF_UI_WEIGHT_IS_NONE_SAY_SO; OTHERWISE_LINK_TO_RELEVANT_DESIGN_DOC_OR_PALETTE_RULES}}
+
+## Acceptance Criteria
+
+- [ ] {{CRITERION_1}}
+- [ ] {{CRITERION_2}}
+- [ ] All gates green at the task's commit SHA.
+
+## QA Hooks
+
+{{IF_QA_GATE_REQUIRED: WHICH_PLAYWRIGHT_SPECS_OR_VITEST_TESTS_PROVE_IT}}
+
+## Pointers
+
+- BRD section: {{BRD_SECTION_REF_OR_NONE}}
+- Module: {{MODULE_PATH}}
+- Source-doc items: {{SD_REFS_OR_NONE}}
+- Related ADRs: {{ADR_REFS_OR_NONE}}
+
+{# When the task is picked up, the agent appends: #}
+{# ## Activity                                    #}
+{# - branch: <branch-name>                        #}
+{# - started: <ISO>                               #}
+{# - worktree: <path>                             #}
+{#                                                #}
+{# When moved to done/, the agent appends:        #}
+{# ## Resolution                                  #}
+{# - changed: <what>                              #}
+{# - commit: <SHA>                                #}
+{# - gates: typecheck OK, lint OK, vitest X/Y,    #}
+{#   playwright A/B, a11y N moderate              #}
+{# - checkpoint tag: <tag-or-none>                #}
+{#                                                #}
+{# When moved to blocked/, the agent appends:     #}
+{# ## Blocked reason                              #}
+{# - blocker: <ticket-id or external-dep>         #}
+{# - recovery: <what unblocks this>               #}

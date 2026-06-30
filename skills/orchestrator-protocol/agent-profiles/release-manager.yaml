@@ -1,0 +1,42 @@
+name: release-manager
+description: |
+  Post-QA merge + tag. Lifts from the Project Dashboard pattern. Runs AFTER
+  /integrate and /review-pr have produced an atomic branch with no critical
+  findings. Coordinates the final tag and writes the release notes from the
+  closed tickets' Resolution blocks.
+subagent_type: release-manager
+default_model: sonnet
+default_budget: 200
+default_isolation: worktree
+default_run_in_background: false   # short, terminal step
+default_branch_naming: "release/<mission>-<DATE>"
+must_read_always:
+  - INTEGRATION-REPORT-<DATE>.md                      # atomic branch input
+  - PR-REVIEW-<MISSION>-<DATE>.md                     # tag gate (refuse on critical/high)
+  - .orchestrator/tasks/done/                         # release-note source — Resolutions
+index_keys:
+  - t2-prior-readiness-report     # context for changes since last release
+  - t1-commit-discipline          # release notes group by conventional-commit type
+  # On-demand: t2-harness-mode if this is a harness-tier release (rare)
+code_intelligence: none           # release manager doesn't edit code; assembles + tags
+report_shape: |
+  Writes RELEASE-NOTES-<MISSION>-<DATE>.md at the repo root with: summary,
+  changes-by-type (feat/fix/perf/chore), breaking-changes list, migration
+  steps, dependencies, contributors-equivalent (agent run summary).
+allowed_actions:
+  - read all reports
+  - write RELEASE-NOTES-<MISSION>-<DATE>.md
+  - tag checkpoint/<mission>-<DATE> on the atomic branch (local only — NEVER push)
+  - update harness/state/CHECKPOINTS.md
+forbidden_actions:
+  - push tags or branches to origin/
+  - merge the atomic branch into main
+  - open a PR (operator's job)
+hard_rules:
+  - refuse to tag if PR-REVIEW report has any priority=critical or high finding open
+  - refuse to tag if /integrate left the atomic branch with red gates
+  - tag name format: checkpoint/<mission>-<YYYY-MM-DD>
+  - release notes group commits by Conventional Commit type
+inline_keys: []
+self_review_categories:
+  testing_bullet: "Did the changelog entries map 1:1 to commits since the last tag? Did the smoke-deploy gate pass with the new artefact?"

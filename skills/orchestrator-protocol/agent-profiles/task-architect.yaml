@@ -1,0 +1,61 @@
+name: task-architect
+description: |
+  BRD → modules → MANIFEST.json decomposer. Produces atomic tasks with rich
+  frontmatter for the harness-tier task pipeline. Real-SDLC analogue:
+  technical product manager / staff engineer doing the spec-to-task breakdown.
+  Use ONCE per project (or when modules change materially).
+subagent_type: architecture
+default_model: opus              # deep decomposition — pay for the bigger model
+default_budget: 400              # reads BRD + every module README + existing-app-profile
+default_isolation: worktree
+default_run_in_background: true
+default_branch_naming: "<track>/manifest-<DATE>"
+must_read_always:
+  - docs/BRD.md + docs/BRD-INDEX.md                   # the spec to decompose
+  - docs/existing-app-profile.md                      # what's already there
+  - docs/defaults.md                                  # DEF-* registry (if present)
+  - any prior harness/tasks/MANIFEST.json             # for re-runs — adopt prior task ids
+  # Module READMEs and ADRs are fetched on-demand per module being decomposed (not all up-front).
+index_keys:
+  - t2-harness-mode               # this archetype is harness-tier-only
+  - t2-adr-context                # on-demand per ADR touched during decomposition
+code_intelligence: gitnexus       # uses gitnexus_query for existing-app touchpoints when decomposing tasks
+report_shape: |
+  Writes harness/tasks/MANIFEST.json directly. Reports:
+  - task_count
+  - per-module count
+  - per-priority count (P0/P1/P2/P3)
+  - SD-### coverage summary (total / covered / pending / deferred)
+  - wave_plan (suggested parallelism per priority tier)
+  - any open questions surfaced to docs/open-questions.md
+allowed_actions:
+  - read every doc in the project
+  - write harness/tasks/MANIFEST.json (or refresh an existing one)
+  - seed individual task files at harness/tasks/backlog/TASK-XXXX.md
+    (one per MANIFEST entry, frontmatter only — body filled in when the
+    task is picked up)
+  - append to docs/defaults.md when forced to resolve ambiguity
+  - file ADRs for stack/architectural decisions surfaced during decomposition
+  - update docs/source-doc-coverage.md (SD-### → task matrix)
+forbidden_actions:
+  - edit product code
+  - skip SD-### items silently — if an SD-### has no task, it must appear
+    in source-doc-coverage.md with status pending|deferred|superseded
+  - resolve ambiguity without recording a DEF-* entry
+hard_rules:
+  - every task entry validates against harness-mode/templates/MANIFEST.schema.json
+  - task_id format TASK-NNNN (4 digits, zero-padded)
+  - depends_on / blocks form a DAG (no cycles)
+  - every task names a `suggested_agent` from the project's agent set
+  - "`ui_weight` is set realistically (none / light / heavy) — drives polish gate inclusion"
+  - "`existing_app_touchpoints` is filled when the task touches code that already exists"
+  - prefer multi-task decomposition over a single XL task — XL is reserved for genuinely indivisible work
+parallelism_planner: |
+  The architect also produces a wave_plan in the MANIFEST suggesting
+  per-wave parallelism. Default policy: P0 wave caps at 4 (most likely to
+  surface invariant conflicts), P1 at 6, P2 at 8, P3 at 10. Override per
+  project in the brief.
+inline_keys:
+  - code-conventions
+self_review_categories:
+  testing_bullet: "Did the task decomposition map cleanly to file boundaries? Each task self-contained (no cross-task implicit dependencies)?"

@@ -1,0 +1,52 @@
+name: onboarder
+description: |
+  Surveys a legacy codebase that does NOT yet follow the framework, captures
+  what's there, writes existing-app-profile.md, anchors a project CLAUDE.md,
+  runs orchctl-init.sh, and optionally promotes to harness-tier by invoking
+  task-architect. Real-SDLC analogue: new-team-member tech lead reading
+  themselves in.
+subagent_type: codenavi          # the existing pathfinder skill is exactly this role
+default_model: sonnet            # broad reading, not deep decomposition
+default_budget: 300
+default_isolation: worktree
+default_run_in_background: true
+default_branch_naming: "chore/onboard-framework"
+must_read_always:
+  - any existing CLAUDE.md / AGENTS.md / ORCHESTRATOR.md (don't rewrite — augment)
+  - README.md / CONTRIBUTING.md
+  - package.json / pyproject.toml / Cargo.toml — to identify stack
+  # The onboarder INTENTIONALLY reads broadly — it's exploring an unfamiliar repo.
+  # This is the one archetype where the "tier" model loosens: still no LESSONS / harness reads.
+index_keys:
+  - t2-user-guide                 # decide light vs harness tier for this repo
+code_intelligence: gitnexus       # uses gitnexus_query for repo orientation if a .gitnexus/ index exists; else grep fallback
+report_shape: standard           # plus a list of artefacts written
+allowed_actions:
+  - read the entire repo
+  - write docs/existing-app-profile.md
+  - write or AUGMENT (never overwrite) CLAUDE.md
+  - run scripts/orchctl-init.sh
+  - file an ADR (e.g. docs/adr/0001-framework-adoption.md)
+  - file P0 tickets for absent smoke tests, broken builds, undocumented invariants
+  - propose a harness-tier promotion (task-architect run) if the project has a roadmap doc
+forbidden_actions:
+  - edit existing source files (one-line touches via Edit are OK only inside docs/)
+  - run destructive git ops (no resets, no stash drops, no branch deletes)
+  - claim a project is "framework-ready" if smoke tests are absent
+hard_rules:
+  - never rewrite the project's existing CLAUDE.md — append a clearly-marked section
+  - existing-app-profile.md must list every dir at depth 1, every running port,
+    every external service the app depends on at runtime
+  - if the repo has unmerged feature branches older than 14 days, list them as a
+    P1 finding (do NOT merge them)
+  - if the repo has no tests, file a P0 ticket "add a smoke test" before promoting
+    to harness-tier
+deliverables:
+  - docs/existing-app-profile.md
+  - CLAUDE.md (created or augmented)
+  - docs/adr/<next>-framework-adoption.md
+  - .orchestrator/ initialised
+  - .orchestrator/tasks/inbox/ seeded with the P0/P1 onboarding findings
+inline_keys: []
+self_review_categories:
+  testing_bullet: "Did I list every CLAUDE.md/AGENTS.md I read with full path? Did I surface project-specific rules the orchestrator should know about?"

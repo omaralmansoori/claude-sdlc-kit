@@ -1,0 +1,108 @@
+# Build Plan — module `{{MODULE_NAME}}`
+
+> Decomposes the design spec into **bounded, single-module build tickets**. Each ticket is small
+> enough for one agent in one worktree, lists the EXACT files it touches, the schemas/endpoints it
+> adds, the **ACs it turns green**, and the **gate commands** that prove it. The orchestrator spawns
+> tickets per the run-plan; it re-runs the gates itself and never trusts a self-declared "done."
+
+- **Spec:** `{{DESIGN_SPEC_PATH}}` · **ACs:** `AC-{{AREA}}-{{AC_RANGE}}`
+- **Ticket families:** `B-{{AREA}}-N` (backend) · `F-{{AREA}}-N` (frontend)
+- Tickets are filed as `<id>-<slug>.todo.md` (see `ticket.todo.md.tmpl`) into
+  `.orchestrator/tasks/inbox/`.
+
+---
+
+## Backend tickets
+
+### B-{{AREA}}-1 — {{B1_TITLE}}
+
+| Field | Value |
+|-------|-------|
+| Files | `{{API_DIR}}/{{MODULE_NAME}}/{{B1_FILES}}`, `{{SCHEMA_DIR}}/{{MODULE_NAME}}.{{SCHEMA_EXT}}`, `{{CONTRACTS_PKG}}/src/{{MODULE_NAME}}.contract.ts` |
+| Schemas | `{{B1_SCHEMAS}}` (Zod; integrator regenerates types — do NOT bump version) |
+| Seams appended | (1) schema · (2) api registry · (4) contracts index |
+| Endpoints | see table below |
+| ACs to turn green | AC-{{AREA}}-01, AC-{{AREA}}-02 |
+| Gate | `{{TYPECHECK_CMD}} && {{LINT_CMD}} && {{UNIT_TEST_CMD}} && {{CONTRACTS_BUILD_CMD}}` |
+
+| Method | Path | Request | Response | Capability |
+|--------|------|---------|----------|-----------|
+| POST | `{{API_BASE}}/{{RESOURCE}}` | `{{B1_REQ}}` | `{{B1_RES}}` | `{{B1_CAP}}` |
+| GET | `{{API_BASE}}/{{RESOURCE}}/:id` | — | `{{B1_RES}}` | `{{B1_CAP_READ}}` |
+
+### B-{{AREA}}-2 — {{B2_TITLE}}
+
+| Field | Value |
+|-------|-------|
+| Files | `{{B2_FILES}}` |
+| Schemas | `{{B2_SCHEMAS}}` |
+| Seams appended | {{B2_SEAMS}} |
+| ACs to turn green | AC-{{AREA}}-03 |
+| Gate | `{{TYPECHECK_CMD}} && {{UNIT_TEST_CMD}}` |
+
+---
+
+## Frontend tickets
+
+### F-{{AREA}}-1 — {{F1_TITLE}}
+
+| Field | Value |
+|-------|-------|
+| Files | `{{WEB_DIR}}/{{MODULE_NAME}}/{{F1_FILES}}` |
+| Imports | types from `{{CONTRACTS_PKG}}` `api-types` (generated — never hand-write shapes) |
+| Seams appended | (3) nav registry (one entry; unit test enforces unique keyboard chord) |
+| ACs to turn green | AC-{{AREA}}-01 (UI), AC-{{AREA}}-04 |
+| Gate | `{{TYPECHECK_CMD}} && {{LINT_CMD}} && {{E2E_CMD}}` (mocked API early; real stack late) |
+
+### F-{{AREA}}-2 — {{F2_TITLE}}
+
+| Field | Value |
+|-------|-------|
+| Files | `{{F2_FILES}}` |
+| ACs to turn green | AC-{{AREA}}-05 |
+| Gate | `{{TYPECHECK_CMD}} && {{E2E_CMD}}` |
+
+---
+
+## Run plan (waves & branches)
+
+This is a **greenfield build-from-spec** run: the B-/F- tickets above ARE the inbox, so there is **no
+discovery wave** — fixers drain the queue starting at Wave 1. (In discovery/audit mode the numbering
+shifts: Wave 1 = discovery, Wave 2 = fix, Wave 3 = re-verify — see PROTOCOL §1 / PLAYBOOK §4.)
+
+Sequential waves; parallel within a wave. Every sub-agent runs in an **isolated worktree**, commits
+its **own branch**, and **never pushes**. Branch names embed a session-short id so concurrent
+sessions can't collide: `{{TRACK}}/{{PHASE}}-{{TICKET_ID}}-s{{SESSION_SHORT}}`.
+
+| Wave | Runs | Parallelism | Tickets | Notes |
+|------|------|-------------|---------|-------|
+| **0 — Baseline + plan** | orchestrator captures the baseline + writes this run-plan | orchestrator alone | — | Baseline keyed by HEAD SHA + `BASELINE-NOTES`; no spawns yet. |
+| **1a — Foundation (SOLO)** | data model + contracts + RBAC/audit/state-machine primitives | 1 agent | the B-ticket that creates `{{MODULE_NAME}}.contract.ts`, the schema file, and the migration | Tag a checkpoint **before** the migration. Everything below leans on this — it lands alone so there's no race on the seams. |
+| **1b — Build (PARALLEL)** | API + web feature tickets | up to {{MAX_PARALLEL}} agents | remaining `B-{{AREA}}-*` and `F-{{AREA}}-*` | Each owns its module globs; appends to seams; mocked API for web e2e. No contracts version bump. |
+| **2 — Re-verify** | re-run gates per branch | parallel | every branch from 1a/1b | Re-verifiers re-run the universal gate against each branch vs the baseline. They do NOT integrate. |
+
+> **Integration is NOT a wave of this build run.** Once Wave 2 is green, run `/kit-integrate` as a
+> **separate** gated pass — a pre-merge Opus `pr-reviewer` gate, merge in documented order, then the
+> integrator (and only the integrator) bumps the contracts version + regenerates `openapi.yaml`/
+> `api-types` ONCE and re-emits atomic conventional commits. It does NOT push or open a PR. See
+> PLAYBOOK §5. Folding integration into the build run is the single most-repeated anti-pattern in the
+> kit (LESSONS L4/L10, PROTOCOL §10).
+
+### Gate commands (the universal gate)
+
+```bash
+{{TYPECHECK_CMD}}        # clean
+{{LINT_CMD}}             # clean
+{{UNIT_TEST_CMD}}        # green
+{{CONTRACTS_BUILD_CMD}}  # contracts build clean
+{{E2E_CMD}}              # browser/e2e green (mocked early; real composed stack late)
+```
+
+Capture a **baseline** keyed by HEAD SHA + a `BASELINE-NOTES` listing pre-existing failures, so a
+regression is distinguishable from an inherited failure. Every commit must be independently green.
+
+### Dependencies
+
+- `1b` cannot start until `1a` is merged (the contract + schema + primitives must exist).
+- Frontend tickets that need a live endpoint either mock it (early) or wait for the matching backend
+  ticket (late). Record the dependency in each ticket's `blocked_by`.

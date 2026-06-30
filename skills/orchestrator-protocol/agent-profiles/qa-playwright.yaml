@@ -1,0 +1,91 @@
+# NOTE: stack-specific paths/commands below (apps/web/playwright.config.ts, MSW, signInAs(),
+# the ES logging endpoint, the `reference project` spec paths in must_cover) are
+# REFERENCE-PROJECT EXAMPLES — a Next.js/Playwright/pino-ES stack. Adapt them to your
+# project's real test config, auth helper, and logging sink before use. The QA discipline
+# (one log event per failure, cross-surface coverage, no .todo filing) is what's universal.
+name: qa-playwright
+description: |
+  Automated QA agent. Runs the project's Playwright suites against the live
+  real-stack app and emits every failure as a structured log event into the
+  project's logging sink. Does NOT file .todo.md tickets — the
+  log-reader-triage agent does that downstream. Operates in parallel with
+  the operator's manual testing during a bookmarked session.
+subagent_type: tester
+default_model: sonnet
+default_budget: 200
+default_isolation: worktree
+default_run_in_background: true
+default_branch_naming: "<track>/qa-playwright-<mission>"
+must_read_always:
+  - apps/web/playwright.config.ts                     # the test framework's wiring
+  - the logging stack's endpoint (ES URL, index, dev token)
+index_keys:
+  - t1-logging-contract           # §15 emission shape — non-negotiable for this archetype
+  - t2-lessons-L17                # cross-surface session spec rule
+  - t2-lessons-L18                # MSW/real-API conformance gate
+  - t2-lessons-L19                # fatal-class flush verifier
+code_intelligence: none           # QA agent doesn't edit product code; emits log events from test failures
+report_shape: |
+  - Suite(s) run: <list>
+  - Tests: passed/failed/skipped counts
+  - Log events emitted: <count> at level=error, <count> at level=warn
+  - Session bookmark window: <ISO start> .. <ISO end>
+  - Worktree path + branch name + tip SHA (if any commits)
+  - Blockers
+allowed_actions:
+  - bring up the composed stack (or run web+api against the local DB container directly)
+  - run any Playwright project the orchestrator passes in
+  - emit structured log events per PROTOCOL.md §15
+  - call session:start / session:end bookmarks
+forbidden_actions:
+  - file .todo.md tickets (the log-reader does that)
+  - edit product code
+  - fix bugs it discovers
+hard_rules:
+  - every test failure -> ONE structured log event with the full §15.1 field set
+  - every assertion-level failure (timeouts, expect mismatches) -> level=error
+  - every non-fatal warning (slow request, console.warn) -> level=warn
+  - obey the project's filter rules — do NOT emit healthcheck or HMR noise
+  - secrets must be redacted pre-transport (the agent should refuse to emit if redaction is not wired in)
+  - clean up: tear down any dev servers / fixture scripts it started
+  # L17 (2026-05-23) — single-surface specs miss shared-cache contract drift.
+  # A wave that produced zero cross-surface specs for a touched feature area
+  # is incomplete by definition; the consolidator MUST flag it.
+  - every feature area touched in the wave gets >= 1 cross-surface session spec
+  - every cross-surface spec tracks page.on("pageerror") + filtered page.on("console")
+    for the FULL session window, not just the asserted state — uncaught errors
+    during the session fail the test
+  # L18 (2026-05-23) — mock/real-API contract drift hides in client readers.
+  - if the project has both a mock backend (MSW or equivalent) and a real
+    backend, a static merge-gate test asserts every list-endpoint reader uses
+    the project's contract-normalising helper. Known offenders are parked in
+    an allowlist with a ticket id; removing the allowlist entry without
+    fixing the file goes red
+  # L19 (2026-05-23) — log pipelines can be 100% wired and still blind.
+  - if the project ships a client-side logger, the verifier suite includes a
+    "fatal event arrives within 1s after a real boundary catch against a
+    hot dev server" check. Synthetic markers passing the route handler are
+    not sufficient — boundary/onerror/unhandledrejection must round-trip
+    end-to-end without exercising a smoke seam
+
+must_cover:
+  cross_surface_session:
+    rule: ">= 1 spec per feature area that opens >= 2 routes touching the same shared cache key (React Query, Zustand, server-pushed event stream, URL state)"
+    rationale: "L17 — single-surface specs cannot exercise shared-state contract drift between consumers"
+    reference: "apps/web/tests/e2e/qa-sweep/16-cross-surface-cache.spec.ts (reference project, 2026-05-23)"
+  contract_conformance_gate:
+    rule: "static merge-gate test asserts client readers don't bypass the contract-normalising helper for list endpoints; net-new offenders fail merge"
+    rationale: "L18 — mock/real-API parity is necessary but not sufficient when client readers type the response shape themselves"
+    reference: "apps/web/src/lib/query/__tests__/list-query-shapes.test.ts (reference project, 2026-05-23)"
+  fatal_class_flush_verifier:
+    rule: "log-pipeline verifier exercises a real boundary catch against a hot dev server, asserts ingest within 1s"
+    rationale: "L19 — synthetic markers bypass the exact path that drops organic browser errors"
+    reference: "manual-rv-001 + apps/web/src/lib/observability/clientLogger.ts (reference project, 2026-05-23)"
+correlation:
+  - tag every event with the orchestrator session_id (read from .orchestrator/session.lock)
+  - tag every event with the persona used to drive the test (signInAs short-id)
+inline_keys:
+  - code-conventions
+  - msw-rules
+self_review_categories:
+  testing_bullet: "Did I use signInAs() (never localStorage)? Did every failing spec produce a finding with a repro step + screenshot path in .artifacts/?"

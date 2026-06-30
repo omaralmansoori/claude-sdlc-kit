@@ -1,0 +1,45 @@
+# Acceptance Criteria Ledger — {{AREA_NAME}}
+
+> The **AC is the unit of "done."** Every criterion in the BRD/FRD for this area is copied here
+> **verbatim**, given a stable id, tagged with the surface it touches and a delivery round, and
+> linked to the **verification** that proves it. Build plans turn ACs green; QA re-checks them; the
+> report is scored against them. If a behaviour isn't an AC here, it isn't a commitment — and if it
+> is an AC, it MUST map to a verification (see the testing policy below).
+
+- **Area family:** `AC-{{AREA}}-NN` (stable; never renumber — append only).
+- **Source:** `{{KB_DIR}}/{{AREA_PATH}}/` (native requirement IDs preserved; cite `file:line`).
+- **Surface tags:** `[backend]` · `[frontend]` · `[both]` · `[contract]`.
+- **Delivery round:** which build round this AC is committed to (`R1`, `R2`, …).
+
+## Ledger
+
+> **Verification ref** holds a **test path** for protected-core ACs (state machine, RBAC, audit,
+> snapshot, temporal/SLA, scoring, merge resolvers) and `live-app: <route>` for everything else.
+
+| AC id | Requirement (verbatim) | Source citation (native id + file:line) | Surface | Round | Verification ref |
+|-------|------------------------|------------------------------------------|---------|-------|------------------|
+| AC-{{AREA}}-01 | {{VERBATIM_CRITERION_1}} | `{{REQ_ID_1}}` — `{{KB_DIR}}/{{AREA_PATH}}/{{DOC_1}}.md:{{LINE_1}}` | `[both]` | R1 | `{{TEST_PATH_1}}` (protected core) |
+| AC-{{AREA}}-02 | {{VERBATIM_CRITERION_2}} | `{{REQ_ID_2}}` — `{{KB_DIR}}/{{AREA_PATH}}/{{DOC_2}}.md:{{LINE_2}}` | `[backend]` | R1 | `{{TEST_PATH_2}}` (protected core) |
+| AC-{{AREA}}-03 | {{VERBATIM_CRITERION_3}} | `{{REQ_ID_3}}` — `{{KB_DIR}}/{{AREA_PATH}}/{{DOC_3}}.md:{{LINE_3}}` | `[contract]` | R1 | `live-app: {{ROUTE_3}}` |
+| AC-{{AREA}}-NN | … | … | … | … | … |
+
+## Rules
+
+1. **Verbatim.** Copy the criterion exactly as written in the corpus — do not paraphrase, summarize,
+   or "improve" it. Paraphrasing loses statutory nuance and breaks traceability.
+2. **One row = one testable assertion.** If a corpus sentence bundles several checks, split it into
+   several AC rows so each maps to one test. Note the split in the source citation (same `file:line`).
+3. **Every AC maps to a verification (opt-in testing, mandatory only for protected core).**
+   Protected-core ACs (state machine, RBAC read-scope + gates, audit invariants, snapshot
+   immutability, allocation/capacity/temporal/SLA math, scoring, merge resolvers) require a **passing
+   automated test against a real DB** — fill `Verification ref` with the test path. Every other AC is
+   **verified on the live app** — fill `Verification ref` with `live-app: <route>` (typecheck + lint +
+   a real click; no test required). An AC with neither a green protected-core test nor a recorded
+   live-app verification is **not done**, regardless of what a sub-agent reports.
+4. **Stable ids, append-only.** Never renumber. A withdrawn AC is struck through and annotated, not
+   deleted — traceability outlives the requirement.
+5. **Surface tag drives the ticket split.** `[backend]`→ B-ticket, `[frontend]`→ F-ticket,
+   `[both]`→ both, `[contract]`→ a contracts change the integrator regenerates.
+6. **Silence is logged, not invented.** If the corpus is ambiguous about an AC, record the gap in
+   `docs/open-questions.md` and capture the conservative default you tested against — don't bake a
+   guess into a verbatim row.

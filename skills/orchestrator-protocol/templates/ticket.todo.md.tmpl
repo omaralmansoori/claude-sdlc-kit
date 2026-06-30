@@ -1,0 +1,44 @@
+---
+id: {{WAVE}}-{{WORKSTREAM}}-{{SEQ}}        # e.g. w1-real-api-03
+produced_by: {{WORKSTREAM_ID}}
+produced_at: {{ISO_TIMESTAMP}}
+consumer_role: {{ROLE}}                     # fixer-api | fixer-web | re-verifier | escalate | <custom>
+priority: {{PRIORITY}}                      # critical | high | medium | low
+area: {{AREA}}                              # backend | web | a11y | perf | infra | docs | <custom>
+blocked_by: {{BLOCKED_BY}}                  # space-separated ids or "none"
+finding_ref: {{FINDING_REF}}                # path#anchor or "n/a"
+---
+## Title
+
+{{ONE_LINE_TITLE}}
+
+## Reproduction (bug) OR Steps (chore)
+
+1. {{STEP_1}}
+2. {{STEP_2}}
+3. ...
+
+## Acceptance criteria
+
+- {{CRITERION_1}}
+- {{CRITERION_2}}
+
+## Pointers
+
+- file:line — {{POINTER_1}}
+- AC / BRD / spec ref — {{POINTER_2}}
+- commit SHA (if reverting / referencing) — {{POINTER_3}}
+
+{# When a consumer picks this up, they append these blocks below: #}
+{# ## Activity                                                     #}
+{# - branch: <branch-name>                                          #}
+{# - started: <ISO timestamp>                                       #}
+{#                                                                 #}
+{# ## Resolution                                                    #}
+{# - changed: <what>                                                #}
+{# - commit: <SHA>                                                  #}
+{# - gate: <which test/build was rerun + result>                    #}
+{#                                                                 #}
+{# OR (if escalating):                                              #}
+{# ## Escalation reason                                             #}
+{# <one paragraph: why this is beyond "small + clearly in scope">   #}

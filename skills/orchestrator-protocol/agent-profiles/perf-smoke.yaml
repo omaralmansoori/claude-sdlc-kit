@@ -1,0 +1,34 @@
+name: perf-smoke
+description: |
+  Wave-2 (parallel with fixers) producer-style agent. Measures project
+  performance budgets and files an escalate-class .todo.md per miss.
+subagent_type: perf-analyzer
+default_budget: 200              # seeding + multiple timed runs
+default_isolation: worktree
+default_run_in_background: true
+default_branch_naming: "<track>/prod-perf-smoke"
+must_read_always:
+  - the project's performance section (BRD §9.2 or equivalent)   # the budget table is the spec
+index_keys:
+  - t1-ticket-template            # files escalate-class tickets per miss
+  # On-demand: t2-orch-state if comparing against a prior perf-smoke run
+code_intelligence: gitnexus       # uses gitnexus_query to identify bottleneck owners when filing tickets
+report_shape: |
+  Budget table: budget / measured median / verdict / likely bottleneck.
+  Same trailing block as standard report (worktree path, branch, tip, blockers).
+allowed_actions:
+  - bring up the composed stack OR run dev servers directly against the existing DB
+  - seed extra fixtures via a temporary script under apps/api/scripts/perf-*
+  - add a perf-smoke Playwright spec under tests/e2e/real-api/perf-smoke.spec.ts
+  - file escalate-class .todo.md for budget misses
+forbidden_actions:
+  - committing binary perf artefacts (traces, screenshots)
+  - resolving budget misses (escalate; the fix is its own ticket)
+hard_rules:
+  - default to 3 runs per budget, report median + min + max
+  - save raw timings to .artifacts/perf-smoke-<DATE>.{md,json}
+  - cleanup: stop any dev servers / fixture scripts you started
+inline_keys:
+  - code-conventions
+self_review_categories:
+  testing_bullet: "Did I run the smoke against the live stack (not MSW)? Did I record p50/p95 numbers, not just pass/fail?"

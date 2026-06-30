@@ -1,0 +1,59 @@
+# INTEGRATION-REPORT-{{DATE}}.md
+
+**Mission:** integrate {{N}} feature branches onto a review-ready branch with atomic conventional commits.
+**Operator:** {{OPERATOR}}
+**Run ID:** {{RUN_ID}}
+
+---
+
+## Input branches
+
+| # | Branch | Tip SHA | Owner | Lines |
+|---|---|---|---|---|
+{{INPUT_BRANCH_ROWS}}
+
+## Known conflict pairs (pre-resolved via `merge=union`)
+
+| Path | Branches | Resolution |
+|---|---|---|
+{{CONFLICT_ROWS_OR_NONE}}
+
+---
+
+## Atomic commit plan
+
+The integration branch `integration/{{MISSION_SLUG}}-{{DATE}}` was rewritten as `integration/{{MISSION_SLUG}}-{{DATE}}-atomic` with one commit per logical bucket. Each commit passes `pnpm -r typecheck && pnpm -r lint` at its SHA.
+
+| # | Bucket | Commit SHA | Files touched | Tickets closed |
+|---|---|---|---|---|
+{{ATOMIC_COMMIT_ROWS}}
+
+---
+
+## Gate results on the atomic branch
+
+| Gate | Result |
+|---|---|
+{{GATE_RESULT_ROWS}}
+
+---
+
+## Reviewer findings still open
+
+{{REVIEWER_FINDINGS_OR_NONE}}
+
+---
+
+## Operator's next steps
+
+```bash
+{{NEXT_STEP_COMMANDS_BLOCK}}
+```
+
+DO NOT push or open a PR from this orchestrator run. Operator drives the merge.
+
+---
+
+## Lessons learned (append to ~/.claude/skills/orchestrator-protocol/LESSONS.md)
+
+{{NEW_LESSONS_BLOCK_OR_NONE}}
